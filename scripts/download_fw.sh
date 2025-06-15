@@ -23,8 +23,14 @@ set -e
 # [
 GET_LATEST_FIRMWARE()
 {
-    curl -s --retry 5 --retry-delay 5 "https://fota-cloud-dn.ospserver.net/firmware/$REGION/$MODEL/version.xml" \
-        | grep latest | sed 's/^[^>]*>//' | sed 's/<.*//'
+    if [ -n "$FORCE_VERSION" ]; then
+        echo "$FORCE_VERSION"
+    elif [ -n "$SOURCE_FIRMWARE_VERSION" ] && [[ "$MODEL" == "$(echo "$SOURCE_FIRMWARE" | cut -d "/" -f 1)" ]]; then
+        echo "$SOURCE_FIRMWARE_VERSION"
+    else
+        curl -s --retry 5 --retry-delay 5 "https://fota-cloud-dn.ospserver.net/firmware/$REGION/$MODEL/version.xml" \
+            | grep latest | sed 's/^[^>]*>//' | sed 's/<.*//'
+    fi
 }
 
 DOWNLOAD_FIRMWARE()
@@ -33,9 +39,19 @@ DOWNLOAD_FIRMWARE()
     PDR="$(pwd)"
 
     cd "$ODIN_DIR"
-    { samfirm -m "$MODEL" -r "$REGION" -i "$IMEI" > /dev/null; } 2>&1 \
-        && touch "$ODIN_DIR/${MODEL}_${REGION}/.downloaded" \
-        || exit 1
+    if [ -n "$FORCE_VERSION" ]; then
+        { samfirm -m "$MODEL" -r "$REGION" -i "$IMEI" --firmware-version "$FORCE_VERSION" > /dev/null; } 2>&1 \
+            && touch "$ODIN_DIR/${MODEL}_${REGION}/.downloaded" \
+            || exit 1
+    elif [ -n "$SOURCE_FIRMWARE_VERSION" ] && [[ "$MODEL" == "$(echo "$SOURCE_FIRMWARE" | cut -d "/" -f 1)" ]]; then
+        { samfirm -m "$MODEL" -r "$REGION" -i "$IMEI" --firmware-version "$SOURCE_FIRMWARE_VERSION"; } 2>&1 \
+            && touch "$ODIN_DIR/${MODEL}_${REGION}/.downloaded" \
+            || exit 1
+    else
+        { samfirm -m "$MODEL" -r "$REGION" -i "$IMEI" > /dev/null; } 2>&1 \
+            && touch "$ODIN_DIR/${MODEL}_${REGION}/.downloaded" \
+            || exit 1
+    fi
     [ -f "$ODIN_DIR/${MODEL}_${REGION}/.downloaded" ] && {
         echo -n "$(find "$ODIN_DIR/${MODEL}_${REGION}" -name "AP*" -exec basename {} \; | cut -d "_" -f 2)/"
         echo -n "$(find "$ODIN_DIR/${MODEL}_${REGION}" -name "CSC*" -exec basename {} \; | cut -d "_" -f 3)/"
@@ -64,15 +80,21 @@ fi
 # ]
 
 FORCE=false
+FORCE_VERSION=""
 
 while [ "$#" != 0 ]; do
     case "$1" in
         "-f" | "--force")
             FORCE=true
             ;;
+        "-v" | "--version")
+            shift
+            FORCE_VERSION="$1"
+            ;;
         *)
             echo "Usage: download_fw [options]"
             echo " -f, --force : Force firmware download"
+            echo " -v, --version <version> : Force download specific firmware version"
             exit 1
             ;;
     esac
