@@ -66,6 +66,12 @@ jobs:
       - name: Build dependencies
         run: source ./buildenv.sh ${{ matrix.target }}
 
+      - name: Remove all submodules after build
+        run: |
+          git submodule deinit -f --all || true
+          rm -rf external/android-tools external/apktool external/erofs-utils external/ext4_utils external/f2fs_utils external/img2sdat external/patches external/samfirm.js external/signapk external/smali
+          git config --remove-section submodule || true
+
       - name: Download stock firmwares
         run: |
           source ./buildenv.sh ${{ matrix.target }}

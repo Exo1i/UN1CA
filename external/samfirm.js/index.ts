@@ -56,7 +56,7 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
       process.exit(1);
     }
     [pda, csc, modem] = parts;
-    
+
     console.log(`
   Using specified version:
     PDA: ${pda}
@@ -165,7 +165,7 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
   console.log(`
   OS: ${binaryOSVersion}
   Filename: ${binaryFilename}
-  Size: ${binaryByteSize} bytes
+  Size: ${(binaryByteSize / (1024 * 1024 * 1024)).toFixed(2)} Gigabytes
   Logic Value: ${binaryLogicValue}
   Description:
     ${binaryDescription.split("\n").join("\n    ")}`);
@@ -207,6 +207,26 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
       const outputFolder = `${process.cwd()}/${model}_${region}/`;
       console.log();
       console.log(outputFolder);
+      // Show available system storage before download
+      const { execSync } = require('child_process');
+      try {
+        const dfOutput = execSync('df -k .', { encoding: 'utf8' });
+        console.log('Available disk space:');
+        console.log(dfOutput);
+        // Parse available space in kilobytes from df output
+        const lines = dfOutput.trim().split('\n');
+        if (lines.length >= 2) {
+          const parts = lines[1].split(/\s+/);
+          const availKB = parseInt(parts[3], 10); // 4th column is 'Avail' in kB
+          const availBytes = availKB * 1024;
+          if (availBytes < binaryByteSize) {
+            console.error(`\nError: Not enough disk space for download. Required: ${(binaryByteSize/(1024*1024*1024)).toFixed(2)} GB, Available: ${(availBytes/(1024*1024*1024)).toFixed(2)} GB.`);
+            process.exit(2);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not determine available disk space.');
+      }
       fs.mkdirSync(outputFolder, { recursive: true });
 
       let downloadedSize = 0;
@@ -268,4 +288,4 @@ const argv = yargs
 
 main(argv.region, argv.model, argv.imei, argv["firmware-version"]);
 
-export {};
+export { };
