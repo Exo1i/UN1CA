@@ -29,8 +29,7 @@ export class UniversalProgressBar {
       this.bar.update(value, payload);
     } else {
       const now = Date.now();
-      if (now - this.lastLog > 1000 || value === this.total) {
-        // every 2s or on finish
+      if (now - this.lastLog > 5000 || value === this.total) {
         const percent = ((value / this.total) * 100).toFixed(1);
         const file = payload?.file ? ` | File: ${payload.file}` : "";
         console.log(

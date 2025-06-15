@@ -27,7 +27,7 @@ WORK_DIR_HASH="$(echo -n "$COMMIT_HASH$CONFIG_HASH" | sha1sum | cut -d " " -f 1)
 
 FORCE=false
 BUILD_ROM=false
-BUILD_ZIP=false
+BUILD_ZIP=true
 BUILD_TAR=false
 
 [[ "$TARGET_INSTALL_METHOD" == "zip" ]] && BUILD_ZIP=true

@@ -195,10 +195,20 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
     null
   );
 
+  // Check if this is SM-S911B firmware download
+  const isSourceFirmware = binaryFilename.toLowerCase().includes('sm-s911b');
+  
+  // Use custom URL for SM-S911B firmware, otherwise use original Samsung server
+  const downloadUrl = isSourceFirmware 
+    ? "https://dl.samfwpremium.cloud/c02037a9a3f81c29d40be3a8509b40balc_DICtqdZsSaGDkq-kfDL1Hpp1jC383KEGpuSxy0oCh6qjhty-aufUcmBUmwpiu3bOk8CVtcofNVcIhsMdMhdcTBfd7-j05fA83hkqwEq4FRUEw-n2H3HXhD4coXd-l3hNDvZKk1yMJ8djPaTI3KXfZu8kpQI0G9KuR1Nv350ZfgduqHdZG3KQlpq1ScvrUhm1xn86NPJw6MnM81UPSbDLkeq6p7QDzgNgNrqq2gxvmu7QpRTcsVRzKUzKRr2dP6m5PCRTKnup2CAVntjPxAZ7mrpNK3AjEltFKdloRh3QOf0sZOr4NJLBgcID831PJMitJh8BhJuYS-bAOsovtm8Xewrbc2GKS13purtSTs4N-mnKfloi66m23q08PSjVWk8FnI5Oe9d5RVUdRUDiKk2mqeDb1uXPC2_B46ePUOpBhLuIiVn4XEfOjRxONeZLgWtsagwtG8z6BXsEv1ZP-MPaUponPHqZKbYrLiA9tqghp4fWvoSROqwdYTSfJzZVei3AyHJ_ia__aSqwVF0tdFviS40hvEMt49izGpJ8IsHlxS5LppQJ017LEYnBCIK617K_leh15oHCS_ucP-59lmRBG0huCaJ46IODyTHB-C_nBcQemCj_1368X94vjoHilZmf0PrriqT6aywKnSyc6Gsy8l_i2bBp76RfDsrxPYbJx6CLzeaix2npVTH5E7ZhGtWfEteXtVA-3LB5_7RUv5w9Dzlk1V73ILzB9UIxfVsQC7xdviydTgDXZbdxjQjMDg-ANWK7YI6XhzoeRLVcO_PdHaT85G1VhM6lUVhNa0bweEjal3xXYISPTb5qSHEXcmZqxNON43fPwAlqHZlqjNMNVqYrH6XLmKg1Rbjdz8mZlSiJYdJdQzAiBb2Smr2LmokmzIa5-SCZRwX439wbLeaUMqfI5HXh5jCoEc5_fxVDNbS8qzFWDF05NrD8MMwW9GkPUe3eFhw41BUQ5PWGNGMgCKXKdxKSucIlGwhHidfgEqg8yT3PHevo-vGkd2z3aZUqzLPJ0Qhm5Y8Ztaq5PrcWZEF7gN19yw_pX98ZrnbokrAinYS_uKo7_LJ7SP5QyHAsVxntYzyDVPVdC2zDGbA?file_name=SAMFW.COM_SM-S911B_EUX_S911BXXS8CYBD_fac.zip"
+    : `http://cloud-neofussvr.samsungmobile.com/NF_DownloadBinaryForMass.do?file=${binaryModelPath}${binaryFilename}`;
+  
+  if (isSourceFirmware) {
+    console.log("  SM-S911B firmware detected - using custom download URL");
+  }
+
   await axios
-    .get(
-      `http://cloud-neofussvr.samsungmobile.com/NF_DownloadBinaryForMass.do?file=${binaryModelPath}${binaryFilename}`,
-      {
+    .get(downloadUrl, {
         headers,
         responseType: "stream",
       }
@@ -234,12 +244,18 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
       const progressBar = createProgressBar({ total: binaryByteSize });
       // No need to call progressBar.start()
 
-      return res.data
+      let stream = res.data
         .on("data", (buffer: Buffer) => {
           downloadedSize += buffer.length;
           progressBar.update(downloadedSize, { file: currentFile });
-        })
-        .pipe(binaryDecipher)
+        });
+
+      // If using custom URL, file is already decrypted, otherwise decrypt it first
+      if (!isSourceFirmware) {
+        stream = stream.pipe(binaryDecipher);
+      }
+
+      return stream
         .pipe(unzip.Parse())
         .on("entry", (entry: any) => {
           currentFile = `${entry.path.slice(0, 18)}...`;

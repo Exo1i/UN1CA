@@ -85,4 +85,12 @@ jobs:
       - name: Build ROM
         run: |
           source ./buildenv.sh ${{ matrix.target }}
-          ./scripts/make_rom.sh --no-rom-zip --no-rom-tar
+          ./scripts/make_rom.sh
+
+      - name: Upload ROM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UN1CA-ROM-${{ matrix.target }}-${{ github.run_number }}
+          path: out/UN1CA_*.zip
+          retention-days: 30
+          compression-level: 0
