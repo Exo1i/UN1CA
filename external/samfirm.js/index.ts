@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import axios, { AxiosResponse } from "axios";
-import cliProgress from "cli-progress";
 import crypto from "crypto";
 import fs from "fs";
 import { XMLParser } from "fast-xml-parser";
@@ -15,6 +14,7 @@ import {
   getBinaryInitMsg,
   getDecryptionKey,
 } from "./utils/msgUtils";
+import { createProgressBar } from "./utils/progressUtils";
 import { version as packageVersion } from "./package.json";
 
 // There is no viable option other than using the `unzip-stream` module, however,
@@ -211,12 +211,8 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
 
       let downloadedSize = 0;
       let currentFile = "";
-      const progressBar = new cliProgress.SingleBar({
-        format: "{bar} {percentage}% | {value}/{total} | {file}",
-        barCompleteChar: "\u2588",
-        barIncompleteChar: "\u2591",
-      });
-      progressBar.start(binaryByteSize, downloadedSize);
+      const progressBar = createProgressBar({ total: binaryByteSize });
+      // No need to call progressBar.start()
 
       return res.data
         .on("data", (buffer: Buffer) => {
@@ -232,6 +228,7 @@ const main = async (region: string, model: string, imei: string, firmwareVersion
             .pipe(fs.createWriteStream(path.join(outputFolder, entry.path)))
             .on("finish", () => {
               if (downloadedSize === binaryByteSize) {
+                progressBar.stop();
                 console.log();
                 process.exit();
               }
